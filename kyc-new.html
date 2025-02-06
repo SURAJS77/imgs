@@ -3,46 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio to Text with MediaRecorder</title>
+    <title>Audio Detection and Transcription</title>
 </head>
 <body>
-    <h1>Audio to Text with MediaRecorder</h1>
-
-    <!-- Video element to show live feed -->
-    <video id="videoElement" width="640" height="480" autoplay></video>
-
-    <br><br>
-
-    <!-- Buttons to control recording -->
-    <button id="startButton">Start Recording</button>
-    <button id="stopButton" disabled>Stop Recording</button>
+    <h1>KYC</h1>
+    <video id="videoElement" width="640" height="480" autoplay muted></video>
+    
+    <!-- Start and Stop buttons for audio recording -->
+    <button id="startButton">Start Listening</button>
+    <button id="stopButton" disabled>Stop Listening</button>
 
     <br><br>
-
-    <!-- Display the video content -->
-    <h3>Recorded Video:</h3>
-    <video id="recordedVideo" controls width="640" height="480"></video>
-    <p id="transcription">Speech Transcription...</p>
-
-    <h3>Video as Base64:</h3>
-    <textarea id="base64Output" rows="10" cols="80"></textarea>
+    
+    <!-- Display Transcribed Text -->
+    <h3>Transcribed Text:</h3>
+    <p id="transcription">Waiting for speech...</p>
 
     <script>
+        // DOM Elements
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         const videoElement = document.getElementById('videoElement');
-        const recordedVideo = document.getElementById('recordedVideo');
-        const base64Output = document.getElementById('base64Output');
         const transcriptionElement = document.getElementById('transcription');
-
-        let mediaRecorder;
-        let videoStream;
-        let audioStream;
-        let recordedChunks = [];
 
         // Check for SpeechRecognition API
         let speechRecognition;
         let allSpeechWhileRecording = "";
+        let consentText = "I GIVE CONSENT TO BE POSP OF LANDMARK";
 
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -63,64 +50,45 @@
             speechRecognition.onerror = (event) => {
                 console.error('Speech recognition error:', event);
             };
+        } else {
+            alert("Speech recognition is not supported in this browser.");
         }
 
-        // Start Video Recording
+        // Start Listening
         startButton.addEventListener('click', async () => {
             try {
-                // Start Speech Recognition
+                // Access the webcam and microphone (only video for the videoElement, and microphone for audio)
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+                // Set the video source and start playing the video
+                videoElement.srcObject = stream;
+
+                // Mute the video
+                videoElement.muted = true;
+
+                // Start Speech Recognition to capture only the audio from the microphone
                 speechRecognition.start();
 
-                // Access the webcam and microphone
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                videoElement.srcObject = videoStream;
-
-                // Extract the audio stream (this is for the speech-to-text)
-                audioStream = new MediaStream(videoStream.getAudioTracks());
-
-                // Initialize MediaRecorder for recording (video and audio)
-                mediaRecorder = new MediaRecorder(videoStream);
-
-                mediaRecorder.ondataavailable = (event) => {
-                    recordedChunks.push(event.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    // Create a Blob from the recorded chunks and create a URL for the video
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const videoUrl = URL.createObjectURL(blob);
-
-                    // Show the video in the 'recordedVideo' element
-                    recordedVideo.src = videoUrl;
-
-                    // Convert video to base64 (you can choose another format if you prefer)
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        base64Output.value = reader.result;  // Display base64 in textarea
-                    };
-                    reader.readAsDataURL(blob);  // Convert to base64
-                };
-
-                // Start recording the video
-                mediaRecorder.start();
-                startButton.disabled = true;
-                stopButton.disabled = false;
-                transcriptionElement.textContent = 'Listening...';
+                // Update UI
+                startButton.disabled = true;  // Disable start button
+                stopButton.disabled = false;  // Enable stop button
+                transcriptionElement.textContent = 'Listening...';  // Show listening message
             } catch (err) {
                 console.error('Error accessing media devices:', err);
             }
         });
 
-        // Stop Video Recording
+        // Stop Listening
         stopButton.addEventListener('click', () => {
-            speechRecognition.stop();
-            mediaRecorder.stop();
-            videoStream.getTracks().forEach(track => track.stop());  // Stop the media stream
-
-            startButton.disabled = false;
-            stopButton.disabled = true;
+            speechRecognition.stop(); // Stop recognition
+            startButton.disabled = false;  // Enable start button
+            stopButton.disabled = true;   // Disable stop button
             transcriptionElement.textContent = 'Stopped listening...'; // Show stopped message
-            console.log("Transcribed text:", allSpeechWhileRecording);
+            if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
+                alert(consentText);
+            } else {
+                console.log(allSpeechWhileRecording);
+            }
         });
     </script>
 </body>
