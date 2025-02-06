@@ -7,7 +7,7 @@
 </head>
 <body>
     <h1>KYC</h1>
-    <video id="videoElement" width="640" height="480" autoplay muted></video>
+    <video id="videoElement" width="640" height="480" autoplay></video>
     
     <!-- Start and Stop buttons for audio recording -->
     <button id="startButton">Start Listening</button>
@@ -57,13 +57,13 @@
         // Start Listening
         startButton.addEventListener('click', async () => {
             try {
-                // Access the webcam and microphone (only video for the videoElement, and microphone for audio)
+                // Access the webcam and microphone (both video and audio)
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
                 // Set the video source and start playing the video
                 videoElement.srcObject = stream;
 
-                // Mute the video
+                // Mute the video to avoid video audio interference
                 videoElement.muted = true;
 
                 // Start Speech Recognition to capture only the audio from the microphone
