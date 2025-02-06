@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Record Video and Extract Text</title>
+</head>
+<body>
+    <h1>Record Video and Extract Text from Audio</h1>
+
+    <!-- Video playback area -->
+    <video id="videoElement" width="640" height="480" autoplay></video>
+    <br>
+
+    <!-- Buttons to control recording -->
+    <button id="startButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+    <br><br>
+
+    <!-- Area to display transcribed text -->
+    <h3>Detected Text:</h3>
+    <p id="transcription"></p>
+
+    <script>
+        // DOM elements
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const videoElement = document.getElementById('videoElement');
+        const transcriptionElement = document.getElementById('transcription');
+
+        let mediaRecorder;
+        let videoStream;
+        let audioStream;
+        let audioChunks = [];
+        let speechRecognition;
+
+        // Initialize the SpeechRecognition API if supported
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            speechRecognition.continuous = true;  // Keep recognition going
+            speechRecognition.interimResults = true;  // Show partial results
+
+            // When speech recognition receives a result, update the transcription text
+            speechRecognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                transcriptionElement.textContent = transcript;
+            };
+
+            speechRecognition.onerror = (event) => {
+                console.error("Speech recognition error", event);
+            };
+        } else {
+            console.log("Speech recognition not supported in this browser.");
+        }
+
+        // Start recording video and audio
+        startButton.addEventListener('click', async () => {
+            try {
+                // Access webcam and microphone
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                videoElement.srcObject = videoStream;
+
+                // Initialize MediaRecorder
+                mediaRecorder = new MediaRecorder(videoStream);
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                // Start recording video and audio
+                mediaRecorder.start();
+                startButton.disabled = true;
+                stopButton.disabled = false;
+
+                // Start speech recognition
+                speechRecognition.start();
+            } catch (err) {
+                console.error("Error accessing media devices:", err);
+            }
+        });
+
+        // Stop recording video and audio
+        stopButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            videoStream.getTracks().forEach(track => track.stop()); // Stop video and audio streams
+
+            // Stop speech recognition
+            speechRecognition.stop();
+
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
