@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Record Video and Extract Text</title>
+    <title>Video Recorder with Face Detection and Audio Transcription</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 </head>
 <body>
-    <h1>Record Video and Extract Text from Audio</h1>
+    <h1>Video Recorder with Face Detection</h1>
 
-    <!-- Video playback area -->
+    <!-- Video element to show the live feed -->
     <video id="videoElement" width="640" height="480" autoplay></video>
-    <br>
+    
+    <br><br>
 
     <!-- Buttons to control recording -->
     <button id="startButton">Start Recording</button>
     <button id="stopButton" disabled>Stop Recording</button>
+
     <br><br>
 
-    <!-- Area to display transcribed text -->
     <h3>Detected Text:</h3>
-    <p id="transcription"></p>
+    <p id="transcription">Waiting for speech...</p>
 
     <script>
-        // DOM elements
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         const videoElement = document.getElementById('videoElement');
@@ -30,68 +31,108 @@
 
         let mediaRecorder;
         let videoStream;
-        let audioStream;
         let audioChunks = [];
+        let transcriptionText = '';
         let speechRecognition;
+        let faceDetectionStarted = false;
 
-        // Initialize the SpeechRecognition API if supported
+        // Load face-api.js models
+        async function loadFaceApiModels() {
+            await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+        }
+
+        loadFaceApiModels().then(() => {
+            console.log('Face API models loaded');
+        });
+
+        // Initialize Speech Recognition (Speech-to-Text)
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            speechRecognition.continuous = true;  // Keep recognition going
-            speechRecognition.interimResults = true;  // Show partial results
+            speechRecognition.continuous = true;
+            speechRecognition.interimResults = true;
 
-            // When speech recognition receives a result, update the transcription text
             speechRecognition.onresult = (event) => {
                 let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     transcript += event.results[i][0].transcript;
                 }
+                transcriptionText = transcript;
                 transcriptionElement.textContent = transcript;
             };
 
             speechRecognition.onerror = (event) => {
-                console.error("Speech recognition error", event);
+                console.error('Speech recognition error:', event);
             };
         } else {
-            console.log("Speech recognition not supported in this browser.");
+            alert("Speech recognition is not supported in this browser.");
         }
 
-        // Start recording video and audio
+        // Start Video Recording and Audio Transcription
         startButton.addEventListener('click', async () => {
             try {
-                // Access webcam and microphone
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 videoElement.srcObject = videoStream;
 
-                // Initialize MediaRecorder
+                // Initialize MediaRecorder to capture video and audio
                 mediaRecorder = new MediaRecorder(videoStream);
                 mediaRecorder.ondataavailable = (event) => {
                     audioChunks.push(event.data);
                 };
-
-                // Start recording video and audio
                 mediaRecorder.start();
+
                 startButton.disabled = true;
                 stopButton.disabled = false;
 
                 // Start speech recognition
                 speechRecognition.start();
+
+                // Check face every 500ms
+                faceDetectionStarted = true;
+                detectFace();
             } catch (err) {
-                console.error("Error accessing media devices:", err);
+                console.error('Error accessing media devices:', err);
             }
         });
 
-        // Stop recording video and audio
+        // Stop Video Recording and Audio Transcription
         stopButton.addEventListener('click', () => {
             mediaRecorder.stop();
-            videoStream.getTracks().forEach(track => track.stop()); // Stop video and audio streams
-
-            // Stop speech recognition
+            videoStream.getTracks().forEach(track => track.stop());
             speechRecognition.stop();
 
             startButton.disabled = false;
             stopButton.disabled = true;
+
+            console.log('Transcription Text:', transcriptionText);
         });
+
+        // Detect Face using face-api.js
+        function detectFace() {
+            if (faceDetectionStarted) {
+                const canvas = faceapi.createCanvasFromMedia(videoElement);
+                document.body.append(canvas);
+
+                setInterval(async () => {
+                    const detections = await faceapi.detectAllFaces(videoElement)
+                        .withFaceLandmarks()
+                        .withFaceDescriptors();
+
+                    canvas?.clear();
+                    canvas?.smooth();
+                    faceapi.draw.drawDetections(canvas, detections);
+                    faceapi.draw.drawFaceLandmarks(canvas, detections);
+
+                    if (detections.length > 0) {
+                        // If face detected, show "Face detected"
+                        transcriptionElement.textContent = 'Face detected - You can start speaking!';
+                    } else {
+                        transcriptionElement.textContent = 'Please align your face with the camera.';
+                    }
+                }, 500);
+            }
+        }
     </script>
 </body>
 </html>
