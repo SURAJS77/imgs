@@ -42,7 +42,7 @@
         // Check for SpeechRecognition API
         let speechRecognition;
         let allSpeechWhileRecording = "";
-        let consentText = "I GIVE CONSENT TO BE POSP OF LNADMARK"
+        let consentText = "I GIVE CONSENT TO BE POSP OF LANDMARK";
 
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -68,12 +68,22 @@
         // Start Video Recording
         startButton.addEventListener('click', async () => {
             try {
+                // Start Speech Recognition
                 speechRecognition.start();
+                
                 // Access the webcam and microphone
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 videoElement.srcObject = videoStream;
 
-                // Initialize MediaRecorder
+                // Mute the audio from the video stream
+                const videoTracks = videoStream.getVideoTracks();
+                const audioTracks = videoStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    // Mute the audio track by disabling it
+                    audioTracks[0].enabled = false;
+                }
+
+                // Initialize MediaRecorder for video recording (no audio)
                 mediaRecorder = new MediaRecorder(videoStream);
 
                 mediaRecorder.ondataavailable = (event) => {
@@ -96,7 +106,7 @@
                     reader.readAsDataURL(blob);  // Convert to base64
                 };
 
-                // Start recording
+                // Start recording video (without audio)
                 mediaRecorder.start();
                 startButton.disabled = true;
                 stopButton.disabled = false;
@@ -115,12 +125,14 @@
             startButton.disabled = false;
             stopButton.disabled = true;
             transcriptionElement.textContent = 'Stopped listening...'; // Show stopped message
+
             if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
                 alert(consentText);
             } else {
                 console.log(allSpeechWhileRecording);
             }
-            console.log(">>>", allSpeechWhileRecording)
+
+            console.log(">>>", allSpeechWhileRecording);
         });
     </script>
 </body>
