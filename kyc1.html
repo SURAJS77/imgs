@@ -50,20 +50,32 @@
         // Initialize Speech Recognition (Speech-to-Text)
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            speechRecognition.continuous = true;
-            speechRecognition.interimResults = true;
+            speechRecognition.continuous = true;  // Keep recognizing speech continuously
+            speechRecognition.interimResults = true;  // Get interim results while speaking
 
+            // Debugging: Log when speech recognition starts
+            speechRecognition.onstart = () => {
+                console.log('Speech recognition started...');
+            };
+
+            // Handle speech recognition results
             speechRecognition.onresult = (event) => {
                 let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+                    transcript += event.results[i][0].transcript; // Get the recognized text
                 }
                 transcriptionText = transcript;
-                transcriptionElement.textContent = transcript;
+                transcriptionElement.textContent = transcript;  // Show recognized text
             };
 
+            // Handle errors during speech recognition
             speechRecognition.onerror = (event) => {
                 console.error('Speech recognition error:', event);
+            };
+
+            // Debugging: Log when speech recognition stops
+            speechRecognition.onend = () => {
+                console.log('Speech recognition stopped...');
             };
         } else {
             alert("Speech recognition is not supported in this browser.");
