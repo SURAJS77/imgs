@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Record Video and Extract Audio</title>
+</head>
+<body>
+    <h1>Record Video and Extract Audio</h1>
+    <video id="videoElement" width="640" height="480" autoplay></video>
+    <br>
+    <button id="startButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+    <br><br>
+    <audio id="audioElement" controls></audio>
+
+    <script>
+        // Select DOM elements
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const videoElement = document.getElementById('videoElement');
+        const audioElement = document.getElementById('audioElement');
+
+        let mediaRecorder;
+        let videoStream;
+        let audioBlob;
+        let audioURL;
+
+        // Start recording video
+        startButton.addEventListener('click', async () => {
+            // Access the user's webcam and microphone
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                videoElement.srcObject = videoStream;
+
+                // Initialize MediaRecorder
+                mediaRecorder = new MediaRecorder(videoStream);
+
+                // Array to store audio chunks
+                let audioChunks = [];
+
+                // When data is available, push to audioChunks array
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                // Once recording stops, create an audio blob and URL
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    audioURL = URL.createObjectURL(audioBlob);
+                    audioElement.src = audioURL; // Set the audio element source
+                };
+
+                mediaRecorder.start();
+
+                // Update button states
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            } catch (err) {
+                console.error('Error accessing media devices:', err);
+            }
+        });
+
+        // Stop recording video
+        stopButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            videoStream.getTracks().forEach(track => track.stop()); // Stop the video stream
+
+            // Update button states
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
