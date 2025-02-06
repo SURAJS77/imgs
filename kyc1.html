@@ -22,7 +22,7 @@
     <!-- Display the video content -->
     <h3>Recorded Video:</h3>
     <video id="recordedVideo" controls width="640" height="480"></video>
-    <p id="transcription">Speech..</p>
+    <p id="transcription">Speech ...</p>
     
     <h3>Video as Base64:</h3>
     <textarea id="base64Output" rows="10" cols="80"></textarea>
@@ -100,6 +100,7 @@
                 mediaRecorder.start();
                 startButton.disabled = true;
                 stopButton.disabled = false;
+                transcriptionElement.textContent = 'Listening...';
             } catch (err) {
                 console.error('Error accessing media devices:', err);
             }
@@ -113,12 +114,13 @@
 
             startButton.disabled = false;
             stopButton.disabled = true;
+            transcriptionElement.textContent = 'Stopped listening...'; // Show stopped message
             if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
                 alert(consentText);
             } else {
                 console.log(allSpeechWhileRecording);
             }
-            transcriptionElement.textContent = allSpeechWhileRecording
+            console.log(">>>", allSpeechWhileRecording)
         });
     </script>
 </body>
