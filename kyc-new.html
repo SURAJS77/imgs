@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KYC</title>
+    <title>Audio to Text with MediaRecorder</title>
 </head>
 <body>
-    <h1>KYC</h1>
+    <h1>Audio to Text with MediaRecorder</h1>
 
-    <!-- Video element to show the live feed -->
+    <!-- Video element to show live feed -->
     <video id="videoElement" width="640" height="480" autoplay></video>
-    
+
     <br><br>
 
     <!-- Buttons to control recording -->
@@ -22,8 +22,8 @@
     <!-- Display the video content -->
     <h3>Recorded Video:</h3>
     <video id="recordedVideo" controls width="640" height="480"></video>
-    <p id="transcription">Speech ...</p>
-    
+    <p id="transcription">Speech Transcription...</p>
+
     <h3>Video as Base64:</h3>
     <textarea id="base64Output" rows="10" cols="80"></textarea>
 
@@ -37,12 +37,12 @@
 
         let mediaRecorder;
         let videoStream;
+        let audioStream;
         let recordedChunks = [];
 
         // Check for SpeechRecognition API
         let speechRecognition;
         let allSpeechWhileRecording = "";
-        let consentText = "I GIVE CONSENT TO BE POSP OF LANDMARK";
 
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -70,20 +70,15 @@
             try {
                 // Start Speech Recognition
                 speechRecognition.start();
-                
+
                 // Access the webcam and microphone
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 videoElement.srcObject = videoStream;
 
-                // Mute the audio from the video stream
-                const videoTracks = videoStream.getVideoTracks();
-                const audioTracks = videoStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    // Mute the audio track by disabling it
-                    audioTracks[0].enabled = false;
-                }
+                // Extract the audio stream (this is for the speech-to-text)
+                audioStream = new MediaStream(videoStream.getAudioTracks());
 
-                // Initialize MediaRecorder for video recording (no audio)
+                // Initialize MediaRecorder for recording (video and audio)
                 mediaRecorder = new MediaRecorder(videoStream);
 
                 mediaRecorder.ondataavailable = (event) => {
@@ -106,7 +101,7 @@
                     reader.readAsDataURL(blob);  // Convert to base64
                 };
 
-                // Start recording video (without audio)
+                // Start recording the video
                 mediaRecorder.start();
                 startButton.disabled = true;
                 stopButton.disabled = false;
@@ -125,14 +120,7 @@
             startButton.disabled = false;
             stopButton.disabled = true;
             transcriptionElement.textContent = 'Stopped listening...'; // Show stopped message
-
-            if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
-                alert(consentText);
-            } else {
-                console.log(allSpeechWhileRecording);
-            }
-
-            console.log(">>>", allSpeechWhileRecording);
+            console.log("Transcribed text:", allSpeechWhileRecording);
         });
     </script>
 </body>
