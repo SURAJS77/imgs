@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Video Recording & Speech to Text</title>
+</head>
+
+<body>
+    <h1>Record Audio & Video, and Display Text</h1>
+    <video id="video" width="400" controls></video>
+    <button id="startRecording">Start Recording</button>
+    <button id="stopRecording" disabled>Stop Recording</button>
+
+    <h2>Audio to Text:</h2>
+    <textarea id="transcription" rows="10" cols="50" readonly></textarea>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let videoStream;
+        let audioStream;
+        let recorderStarted = false;
+
+        // DOM Elements
+        const videoElement = document.getElementById('video');
+        const startButton = document.getElementById('startRecording');
+        const stopButton = document.getElementById('stopRecording');
+        const transcriptionArea = document.getElementById('transcription');
+
+        // SpeechRecognition API setup
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        // Initialize MediaRecorder
+        async function startRecording() {
+            if (recorderStarted) return;
+
+            // Get the user's media (video and audio)
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            videoElement.srcObject = stream;
+
+            videoStream = stream.getVideoTracks();
+            audioStream = stream.getAudioTracks();
+
+            mediaRecorder = new MediaRecorder(stream);
+
+            // Collect audio chunks
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            // Handle mediaRecorder stop
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioURL = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioURL);
+                audio.play();
+                audioChunks = []; // Clear audio chunks after recording
+            };
+
+            // Start recording video
+            mediaRecorder.start();
+            recorderStarted = true;
+            startButton.disabled = true;
+            stopButton.disabled = false;
+
+            // Start speech-to-text
+            recognition.start();
+        }
+
+        // Stop Recording and Transcribe Audio to Text
+        function stopRecording() {
+            mediaRecorder.stop();
+            videoStream.forEach(track => track.stop());  // Stop video tracks
+            audioStream.forEach(track => track.stop());  // Stop audio tracks
+            recognition.stop();
+
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        }
+
+        // Handle speech recognition results
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0].transcript)
+                .join('');
+            transcriptionArea.value = transcript; // Display text in textarea
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+        };
+
+        startButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+
+    </script>
+</body>
+
+</html>
