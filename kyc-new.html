@@ -1,83 +1,97 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Video Recording and Transcription</title>
-<style>
-  #video {
-    width: 640px;
-    height: 480px;
-    border: 1px solid black;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Detection and Transcription</title>
 </head>
 <body>
+    <h1>KYC</h1>
+    <video id="videoElement" width="640" height="480" autoplay muted></video>  <button id="startButton">Start Listening</button>
+    <button id="stopButton" disabled>Stop Listening</button>
 
-<h1>Video Recording and Transcription</h1>
+    <br><br>
 
-<video id="video" autoplay></video>
-<button id="startRecording">Start Recording</button>
-<button id="stopRecording" disabled>Stop Recording</button>
+    <h3>Transcribed Text:</h3>
+    <p id="transcription">Waiting for speech...</p>
 
-<div id="transcription"></div>
+    <script>
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const videoElement = document.getElementById('videoElement');
+        const transcriptionElement = document.getElementById('transcription');
 
-<script>
-  let recorder, chunks = [];
-  const video = document.getElementById('video');
-  const startRecording = document.getElementById('startRecording');
-  const stopRecording = document.getElementById('stopRecording');
-  const transcription = document.getElementById('transcription');
+        let speechRecognition;
+        let allSpeechWhileRecording = "";
+        let consentText = "I GIVE CONSENT TO BE POSP OF LANDMARK";
+        let stream; // Store the MediaStream
 
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-      video.srcObject = stream;
-      recorder = new MediaRecorder(stream);
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            speechRecognition.continuous = true;
+            speechRecognition.interimResults = true;
 
-      recorder.ondataavailable = e => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
+            speechRecognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                allSpeechWhileRecording += transcript;
+                transcriptionElement.textContent = transcript;
+            };
+
+            speechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event);
+            };
+
+            speechRecognition.onstart = () => {
+              transcriptionElement.textContent = 'Listening...';
+            }
+
+            speechRecognition.onend = () => {
+                transcriptionElement.textContent = 'Stopped listening...';
+            }
+        } else {
+            alert("Speech recognition is not supported in this browser.");
         }
-      };
 
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' }); // Or video/mp4, depending on browser support
-        chunks = []; // Clear chunks for the next recording
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); // Get both
 
-        // Here you would typically upload the blob to a server
-        // and use a speech-to-text service to get the transcription.
-        // I'm using a placeholder for demonstration.
+                videoElement.srcObject = stream;
+                videoElement.muted = true; // Important: Mute the video!
 
-        // Placeholder transcription (replace with actual service call)
-        transcription.textContent = "Transcription will appear here after processing.  (Simulated)";
+                // Get the audio track from the combined stream
+                const audioTracks = stream.getAudioTracks();
+                const audioStream = new MediaStream(audioTracks); // Create a new stream with ONLY audio
 
-        // For demonstration, you can create a download link:
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'recorded_video.webm'; // Change file extension if needed
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      };
+                speechRecognition.start(); // Start speech recognition using the ONLY audio stream.
 
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            } catch (err) {
+                console.error('Error accessing media devices:', err);
+            }
+        });
 
-      startRecording.onclick = () => {
-        recorder.start();
-        startRecording.disabled = true;
-        stopRecording.disabled = false;
-      };
+        stopButton.addEventListener('click', () => {
+            speechRecognition.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
+                alert(consentText);
+            } else {
+                console.log(allSpeechWhileRecording);
+            }
 
-      stopRecording.onclick = () => {
-        recorder.stop();
-        startRecording.disabled = false;
-        stopRecording.disabled = true;
-      };
-
-    })
-    .catch(err => console.error('Error accessing camera:', err));
-
-
-</script>
-
+            // Stop BOTH video and audio when done!
+            if (stream) {
+              const tracks = stream.getTracks();
+              tracks.forEach(track => track.stop());
+              videoElement.srcObject = null; // Clear the video element
+            }
+        });
+    </script>
 </body>
 </html>
