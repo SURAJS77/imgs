@@ -7,7 +7,8 @@
 </head>
 <body>
     <h1>KYC</h1>
-    <video id="videoElement" width="640" height="480" autoplay muted></video>  <button id="startButton">Start Listening</button>
+    <video id="videoElement" width="640" height="480" autoplay muted></video>
+    <button id="startButton">Start Listening</button>
     <button id="stopButton" disabled>Stop Listening</button>
 
     <br><br>
@@ -25,6 +26,7 @@
         let allSpeechWhileRecording = "";
         let consentText = "I GIVE CONSENT TO BE POSP OF LANDMARK";
         let stream; // Store the MediaStream
+        let audioStream;
 
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -45,33 +47,39 @@
             };
 
             speechRecognition.onstart = () => {
-              transcriptionElement.textContent = 'Listening...';
-            }
+                transcriptionElement.textContent = 'Listening...';
+            };
 
             speechRecognition.onend = () => {
                 transcriptionElement.textContent = 'Stopped listening...';
-            }
+            };
         } else {
             alert("Speech recognition is not supported in this browser.");
         }
 
         startButton.addEventListener('click', async () => {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); // Get both
+                // ***CRITICAL CHANGE: Start speech recognition FIRST***
+                speechRecognition.start();  // Start it here
+
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
                 videoElement.srcObject = stream;
-                videoElement.muted = true; // Important: Mute the video!
+                videoElement.muted = true;
 
-                // Get the audio track from the combined stream
                 const audioTracks = stream.getAudioTracks();
-                const audioStream = new MediaStream(audioTracks); // Create a new stream with ONLY audio
+                audioStream = new MediaStream(audioTracks); // Create a new stream with ONLY audio
 
-                speechRecognition.start(); // Start speech recognition using the ONLY audio stream.
+                // Now that speech recognition is running, we can use the audioStream
+                // (No need to explicitly set it anywhere, speechRecognition is already listening)
 
                 startButton.disabled = true;
                 stopButton.disabled = false;
             } catch (err) {
                 console.error('Error accessing media devices:', err);
+                speechRecognition.stop(); // Stop recognition if there's an error
+                startButton.disabled = false;
+                stopButton.disabled = true;
             }
         });
 
@@ -79,17 +87,21 @@
             speechRecognition.stop();
             startButton.disabled = false;
             stopButton.disabled = true;
+
             if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
                 alert(consentText);
             } else {
                 console.log(allSpeechWhileRecording);
             }
 
-            // Stop BOTH video and audio when done!
             if (stream) {
-              const tracks = stream.getTracks();
-              tracks.forEach(track => track.stop());
-              videoElement.srcObject = null; // Clear the video element
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            if(audioStream) {
+                const tracks = audioStream.getTracks();
+                tracks.forEach(track => track.stop());
             }
         });
     </script>
