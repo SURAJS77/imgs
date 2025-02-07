@@ -1,95 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Detection and Transcription</title>
+<title>Video Recording and Transcription</title>
+<style>
+  #video {
+    width: 640px;
+    height: 480px;
+    border: 1px solid black;
+  }
+</style>
 </head>
 <body>
-    <h1>KYC</h1>
-    <video id="videoElement" width="640" height="480" autoplay></video>
-    
-    <!-- Start and Stop buttons for audio recording -->
-    <button id="startButton">Start Listening</button>
-    <button id="stopButton" disabled>Stop Listening</button>
 
-    <br><br>
-    
-    <!-- Display Transcribed Text -->
-    <h3>Transcribed Text:</h3>
-    <p id="transcription">Waiting for speech...</p>
+<h1>Video Recording and Transcription</h1>
 
-    <script>
-        // DOM Elements
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const videoElement = document.getElementById('videoElement');
-        const transcriptionElement = document.getElementById('transcription');
+<video id="video" autoplay></video>
+<button id="startRecording">Start Recording</button>
+<button id="stopRecording" disabled>Stop Recording</button>
 
-        // Check for SpeechRecognition API
-        let speechRecognition;
-        let allSpeechWhileRecording = "";
-        let consentText = "I GIVE CONSENT TO BE POSP OF LANDMARK";
+<div id="transcription"></div>
 
-        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-            speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            speechRecognition.continuous = true;  // Keep recognizing continuously
-            speechRecognition.interimResults = true;  // Show partial results
+<script>
+  let recorder, chunks = [];
+  const video = document.getElementById('video');
+  const startRecording = document.getElementById('startRecording');
+  const stopRecording = document.getElementById('stopRecording');
+  const transcription = document.getElementById('transcription');
 
-            // Event listener for when speech is recognized
-            speechRecognition.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript; // Get the recognized text
-                }
-                allSpeechWhileRecording += transcript;
-                transcriptionElement.textContent = transcript; // Display the transcribed text
-            };
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+      recorder = new MediaRecorder(stream);
 
-            // Handle errors
-            speechRecognition.onerror = (event) => {
-                console.error('Speech recognition error:', event);
-            };
-        } else {
-            alert("Speech recognition is not supported in this browser.");
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
         }
+      };
 
-        // Start Listening
-        startButton.addEventListener('click', async () => {
-            try {
-                // Access the webcam and microphone (both video and audio)
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' }); // Or video/mp4, depending on browser support
+        chunks = []; // Clear chunks for the next recording
 
-                // Set the video source and start playing the video
-                videoElement.srcObject = stream;
+        // Here you would typically upload the blob to a server
+        // and use a speech-to-text service to get the transcription.
+        // I'm using a placeholder for demonstration.
 
-                // Mute the video to avoid video audio interference
-                videoElement.muted = true;
+        // Placeholder transcription (replace with actual service call)
+        transcription.textContent = "Transcription will appear here after processing.  (Simulated)";
 
-                // Start Speech Recognition to capture only the audio from the microphone
-                speechRecognition.start();
+        // For demonstration, you can create a download link:
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recorded_video.webm'; // Change file extension if needed
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
 
-                // Update UI
-                startButton.disabled = true;  // Disable start button
-                stopButton.disabled = false;  // Enable stop button
-                transcriptionElement.textContent = 'Listening...';  // Show listening message
-            } catch (err) {
-                console.error('Error accessing media devices:', err);
-            }
-        });
 
-        // Stop Listening
-        stopButton.addEventListener('click', () => {
-            speechRecognition.stop(); // Stop recognition
-            startButton.disabled = false;  // Enable start button
-            stopButton.disabled = true;   // Disable stop button
-            transcriptionElement.textContent = 'Stopped listening...'; // Show stopped message
-            if (allSpeechWhileRecording.toUpperCase().includes(consentText)) {
-                alert(consentText);
-            } else {
-                console.log(allSpeechWhileRecording);
-            }
-        });
-    </script>
+      startRecording.onclick = () => {
+        recorder.start();
+        startRecording.disabled = true;
+        stopRecording.disabled = false;
+      };
+
+      stopRecording.onclick = () => {
+        recorder.stop();
+        startRecording.disabled = false;
+        stopRecording.disabled = true;
+      };
+
+    })
+    .catch(err => console.error('Error accessing camera:', err));
+
+
+</script>
+
 </body>
 </html>
