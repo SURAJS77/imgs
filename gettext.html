@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Extraction and Transcription</title>
+</head>
+<body>
+    <input type="file"
+           id="videoInput" 
+           accept="video/*">
+           <button onclick="downloadAudio()">Download Audio</button>
+    <script>
+        let audioBuffer = null;  // Store the audio buffer
+        let audioBlob = null; 
+        document.getElementById('videoInput')
+            .addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                extractAndPlayAudio(file);
+            }
+        }
+
+        function extractAndPlayAudio(videoFile) {
+            const audioContext = 
+                new (window.AudioContext || window.webkitAudioContext)();
+            const reader = new FileReader();
+
+            reader.onload = function () {
+                const arrayBuffer = reader.result;
+                audioContext.decodeAudioData(arrayBuffer, function (buffer) {
+                    playAudio(buffer);
+                    // Convert the audio buffer to a Blob (for download)
+                    audioBlob = bufferToBlob(buffer);
+                }, function (error) {
+                    console.error('Error decoding audio: ', error);
+                });
+            };
+
+            reader.readAsArrayBuffer(videoFile);
+        }
+
+        function playAudio(buffer) {
+            const audioContext = 
+                new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start();
+            convertText();
+        }
+        function convertText() {
+            // Check for SpeechRecognition API
+            let speechRecognition;
+            let allSpeechWhileRecording = "";
+            let consentText = "I GIVE CONSENT TO BE POSP OF LNADMARK"
+
+            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                speechRecognition.continuous = true;  // Keep recognizing continuously
+                speechRecognition.interimResults = true;  // Show partial results
+
+                // Event listener for when speech is recognized
+                speechRecognition.onresult = (event) => {
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript; // Get the recognized text
+                    }
+                    allSpeechWhileRecording += transcript;
+                    transcriptionElement.textContent = transcript; // Display the transcribed text
+                    alert("transcript", transcript)
+                };
+
+                // Handle errors
+                speechRecognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event);
+                };
+            } else {
+                alert("Speech recognition is not supported in this browser.");
+            }
+        }
+        function bufferToBlob(buffer) {
+            const wavData = audioBufferToWav(buffer); // You can use a library like 'wav-encoder' or 'audio-buffer-to-wav'
+            return new Blob([wavData], { type: 'audio/wav' });
+        }
+
+        // Utility function to convert AudioBuffer to WAV (you can use a library like 'audio-buffer-to-wav')
+        function audioBufferToWav(buffer) {
+            const numberOfChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const length = buffer.length;
+            const bufferArray = new Float32Array(length * numberOfChannels);
+
+            for (let channel = 0; channel < numberOfChannels; channel++) {
+                const channelData = buffer.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    bufferArray[i * numberOfChannels + channel] = channelData[i];
+                }
+            }
+
+            const wavArray = encodeWAV(bufferArray, sampleRate, numberOfChannels);
+            return wavArray;
+        }
+
+        // Simple WAV encoding function (basic, can be optimized or replaced with a library like 'wav-encoder')
+        function encodeWAV(samples, sampleRate, channels) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+            const writeString = (str, offset) => {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset + i, str.charCodeAt(i));
+                }
+            };
+
+            writeString('RIFF', 0);
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString('WAVE', 8);
+            writeString('fmt ', 12);
+            view.setUint32(16, 16, true);  // Subchunk1Size
+            view.setUint16(20, 1, true);   // AudioFormat
+            view.setUint16(22, channels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * channels * 2, true); // ByteRate
+            view.setUint16(32, channels * 2, true);  // BlockAlign
+            view.setUint16(34, 16, true);  // BitsPerSample
+            writeString('data', 36);
+            view.setUint32(40, samples.length * 2, true);
+
+            // Write audio data (16-bit PCM samples)
+            for (let i = 0; i < samples.length; i++) {
+                view.setInt16(44 + i * 2, samples[i] * 32767, true);
+            }
+
+            return new Uint8Array(buffer);
+        }
+
+        // Function to trigger the download
+        function downloadAudio() {
+            if (audioBlob) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(audioBlob);
+                link.download = 'extracted-audio.wav';  // Set the desired file name
+                link.click();
+            } else {
+                console.log('Audio not ready for download.');
+            }
+        }
+    </script>
+</body>
+</html>
