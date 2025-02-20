@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Unique Game UI</title>
     <style>
         body {
@@ -44,6 +44,7 @@
         canvas.height = 500;
 
         let score = 0;
+        let gameRunning = true;
         let player = { x: 50, y: 200, width: 40, height: 40, color: '#FFD700', dy: 0 };
         let gravity = 0.5;
         let obstacles = [];
@@ -78,6 +79,7 @@
                     player.y < obstacle.y + obstacle.height &&
                     player.y + player.height > obstacle.y
                 ) {
+                    gameRunning = false;
                     alert('Game Over! Your Score: ' + score);
                     document.location.reload();
                 }
@@ -85,6 +87,8 @@
         }
 
         function update() {
+            if (!gameRunning) return;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawPlayer();
             drawObstacles();
@@ -101,10 +105,21 @@
             requestAnimationFrame(update);
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
+        function jump() {
+            if (player.y + player.height === canvas.height) {
                 player.dy = -10;
             }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                jump();
+            }
+        });
+
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevents zooming
+            jump();
         });
 
         update();
